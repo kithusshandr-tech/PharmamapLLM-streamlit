@@ -56,32 +56,61 @@ class BaseAgent:
         raise NotImplementedError
 
 class HuggingFaceAgent(BaseAgent):
-    def __init__(self, name: str):
+    def __init__(self, name: str, endpoint_url: str | None = None):
         super().__init__(name, "hf_endpoint")
+        self.endpoint_url = endpoint_url or os.getenv("HUGGINGFACE_ENDPOINT_URL")
+        if not self.endpoint_url:
+            raise ValueError("HUGGINGFACE_ENDPOINT_URL is not set.")
+        self.hf_token = os.getenv("HUGGINGFACE_API_KEY")  # optional if endpoint is public
 
-    def _call_huggingface_api(self, prompt: str) -> str:
-        """Call the finetuned HuggingFace endpoint exactly as in zz.py."""
+    def _call_huggingface_api(self, prompt: str, max_retries: int = 3) -> str:
+        """Call your HF Inference Endpoint with retries."""
         headers = {
             "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
-        url = "https://cl1yyn4n4oicz0d9.us-east-1.aws.endpoints.huggingface.cloud"
+        if self.hf_token:
+            headers["Authorization"] = f"Bearer {self.hf_token}"
+
         payload = {
             "inputs": prompt,
-            "parameters": {}
+            "parameters": {
+                "max_new_tokens": 200,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "return_full_text": False,
+                "do_sample": True,
+            }
         }
-        try:
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            # The endpoint returns a list of dicts or a dict
-            if isinstance(data, list) and data and isinstance(data[0], dict):
-                return data[0].get("generated_text", str(data[0]))
-            if isinstance(data, dict) and "generated_text" in data:
-                return data["generated_text"]
-            return str(data)
-        except Exception as e:
-            return f"API Error: {e}"
+
+        for attempt in range(max_retries):
+            try:
+                resp = requests.post(self.endpoint_url, headers=headers, json=payload, timeout=60)
+                # Endpoint can return 503 while spinning up
+                if resp.status_code == 503:
+                    wait_s = min(20 * (attempt + 1), 60)
+                    st.info(f"⏳ Endpoint warming up… retrying in {wait_s}s (attempt {attempt+1}/{max_retries})")
+                    time.sleep(wait_s)
+                    continue
+
+                resp.raise_for_status()
+                data = resp.json()
+
+                # Endpoint may return [{"generated_text": "..."}] or {"generated_text": "..."}
+                if isinstance(data, list) and data and isinstance(data[0], dict):
+                    return data[0].get("generated_text", "No response generated")
+                if isinstance(data, dict) and "generated_text" in data:
+                    return data["generated_text"]
+                if isinstance(data, dict) and "error" in data:
+                    return f"API Error: {data['error']}"
+                return str(data)
+
+            except requests.exceptions.RequestException as e:
+                if attempt == max_retries - 1:
+                    return f"API Error after {max_retries} attempts: {e}"
+                time.sleep(5 * (attempt + 1))
+
+        return "Failed to get response from HF Endpoint"
 
 
 # class HuggingFaceAgent(BaseAgent):
