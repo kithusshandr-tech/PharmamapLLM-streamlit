@@ -169,7 +169,7 @@ class HuggingFaceAgent(BaseAgent):
 
 class PredictorAgent(HuggingFaceAgent):
     def __init__(self):
-        super().__init__("🔮 Predictor Agent", "Pharmamapllm/MedLLaMA3-DDI-QLoRA-V1")
+        super().__init__("🔮 Predictor Agent")
 
     def process(self, input_data: Dict) -> AgentResponse:
         start_time = time.time()
@@ -214,7 +214,7 @@ CLASSIFICATION:"""
 
 class ValidatorAgent1(HuggingFaceAgent):
     def __init__(self):
-        super().__init__("✅ Validator Agent 1", "Pharmamapllm/MedLLaMA3-DDI-QLoRA-V1")
+        super().__init__("✅ Validator Agent 1")
 
     def process(self, input_data: Dict) -> AgentResponse:
         start_time = time.time()
@@ -695,3 +695,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
