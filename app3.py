@@ -431,48 +431,48 @@ def save_conversation_log(log: ConversationLog):
     return filename
 
 def display_agent_response(response: AgentResponse, idx: int):
-    """Display agent response in Streamlit (clean, spacious)"""
-    with st.container():
-        st.markdown(
-            f"""
-            <div style="
-                padding:16px;
-                margin-bottom:14px;
-                border:1px solid rgba(0,0,0,0.08);
-                border-radius:12px;
-                background: #fff;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-            ">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                <div style="font-weight:600;font-size:1.05rem;">
-                    {response.agent_name} <span style="opacity:.7;">— {response.response}</span>
-                </div>
-                <div style="display:flex;gap:12px;opacity:.8;">
-                    <div>Confidence: <b>{response.confidence:.2f}</b></div>
-                    <div>Time: <b>{response.processing_time:.2f}s</b></div>
-                    <div>Model: <code>{response.model_used}</code></div>
-                </div>
-              </div>
-              <div style="margin-top:10px;">
-                <div style="font-size:.9rem;opacity:.75;">Reasoning</div>
-                <pre style="
-                    margin-top:6px;
-                    padding:12px;
-                    background:#0f172a;
-                    color:#e5e7eb;
-                    border-radius:8px;
-                    max-height:320px;
-                    overflow:auto;
-                    white-space:pre-wrap;
-                    line-height:1.4;
-                    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-                    font-size:.92rem;
-                ">{response.reasoning}</pre>
-              </div>
+    """Display agent response (clean, spacious, readable)"""
+    st.markdown(
+        f"""
+        <div style="
+            padding:16px;
+            margin-bottom:14px;
+            border:1px solid rgba(0,0,0,0.08);
+            border-radius:12px;
+            background:#ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            color:#0f172a;
+        ">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="font-weight:600;font-size:1.05rem;">
+                {response.agent_name} <span style="opacity:.7;">— {response.response}</span>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+            <div style="display:flex;gap:12px;opacity:.85;flex-wrap:wrap;">
+                <div>Confidence: <b>{response.confidence:.2f}</b></div>
+                <div>Time: <b>{response.processing_time:.2f}s</b></div>
+                <div>Model: <code style="color:#334155;">{response.model_used}</code></div>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="font-size:.9rem;opacity:.8;">Reasoning</div>
+            <pre style="
+                margin-top:6px;
+                padding:12px;
+                background:#f6f8fa;        /* light gray like GitHub */
+                color:#111827;              /* dark text */
+                border-radius:8px;
+                max-height:360px;
+                overflow:auto;
+                white-space:pre-wrap;
+                line-height:1.45;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+                font-size:.95rem;
+            ">{response.reasoning}</pre>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 def check_api_status():
@@ -506,8 +506,9 @@ def main():
         page_title="DDI Multi-Agent",
         page_icon="💊",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="collapsed",   # <--
     )
+
 
     # --- Minimal CSS polish: wider content, cleaner fonts, nicer headers
     st.markdown("""
