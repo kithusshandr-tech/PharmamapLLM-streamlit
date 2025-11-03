@@ -633,25 +633,36 @@ def main():
                 progress.progress(100)
                 status.text("✅ Complete")
 
-                # Final decision card
+               # Final decision card
                 st.markdown("---")
                 decision_color = "🔴" if final_result.response == "interaction" else "🟢"
+                bg_color = "#ffefef" if final_result.response == "interaction" else "#eef8ef"
+                border_color = "#ffd3d3" if final_result.response == "interaction" else "#cfe9cf"
+
                 st.markdown(
                     f"""
                     <div style="
-                        padding: 18px; border-radius: 12px;
-                        background: {'#ffefef' if final_result.response == 'interaction' else '#eef8ef'};
-                        border: 1px solid {'#ffd3d3' if final_result.response == 'interaction' else '#cfe9cf'};
+                        padding: 20px;
+                        border-radius: 12px;
+                        background: {bg_color};
+                        border: 1px solid {border_color};
+                        color: #0f172a;                 /* force readable dark text */
+                        font-family: 'Segoe UI', Roboto, sans-serif;
                     ">
-                      <div style="font-size:1.15rem; font-weight:700; margin-bottom:6px;">
-                        {decision_color} Final Decision: {final_result.response.upper()}
-                      </div>
-                      <div>Confidence: <b>{final_result.confidence:.2f}</b></div>
-                      <div>Total time: <b>{total_time:.2f}s</b></div>
+                        <div style="font-size:1.3rem; font-weight:700; margin-bottom:6px;">
+                            {decision_color} Final Decision: {final_result.response.upper()}
+                        </div>
+                        <div style="font-size:1rem; margin-top:6px;">
+                            Confidence: <b>{final_result.confidence:.2f}</b>
+                        </div>
+                        <div style="font-size:1rem; margin-top:3px;">
+                            Total Time: <b>{total_time:.2f}s</b>
+                        </div>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
+
 
                 # Agent tabs
                 st.subheader("🤖 Agent Analyses")
