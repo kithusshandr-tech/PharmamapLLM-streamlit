@@ -431,26 +431,49 @@ def save_conversation_log(log: ConversationLog):
     return filename
 
 def display_agent_response(response: AgentResponse, idx: int):
-    """Display agent response in Streamlit"""
-    with st.expander(f"{response.agent_name} - {response.response}", expanded=False):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric("Confidence", f"{response.confidence:.2f}")
-            st.metric("Processing Time", f"{response.processing_time:.2f}s")
-        
-        with col2:
-            st.text(f"Model: {response.model_used}")
-            st.text(f"Timestamp: {response.timestamp}")
-        
-        # st.text_area("Reasoning", response.reasoning, height=100, disabled=True)
-        st.text_area(
-            "Reasoning",
-            response.reasoning,
-            height=100,
-            disabled=True,
-            key=f"reasoning_{idx}"
+    """Display agent response in Streamlit (clean, spacious)"""
+    with st.container():
+        st.markdown(
+            f"""
+            <div style="
+                padding:16px;
+                margin-bottom:14px;
+                border:1px solid rgba(0,0,0,0.08);
+                border-radius:12px;
+                background: #fff;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            ">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div style="font-weight:600;font-size:1.05rem;">
+                    {response.agent_name} <span style="opacity:.7;">— {response.response}</span>
+                </div>
+                <div style="display:flex;gap:12px;opacity:.8;">
+                    <div>Confidence: <b>{response.confidence:.2f}</b></div>
+                    <div>Time: <b>{response.processing_time:.2f}s</b></div>
+                    <div>Model: <code>{response.model_used}</code></div>
+                </div>
+              </div>
+              <div style="margin-top:10px;">
+                <div style="font-size:.9rem;opacity:.75;">Reasoning</div>
+                <pre style="
+                    margin-top:6px;
+                    padding:12px;
+                    background:#0f172a;
+                    color:#e5e7eb;
+                    border-radius:8px;
+                    max-height:320px;
+                    overflow:auto;
+                    white-space:pre-wrap;
+                    line-height:1.4;
+                    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+                    font-size:.92rem;
+                ">{response.reasoning}</pre>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
+
 
 def check_api_status():
     """Check if APIs are accessible"""
@@ -480,219 +503,201 @@ def check_api_status():
 
 def main():
     st.set_page_config(
-        page_title="Multi-Agent DDI Prediction System",
+        page_title="DDI Multi-Agent",
         page_icon="💊",
         layout="wide",
         initial_sidebar_state="expanded"
     )
-    
-    st.title("💊 Multi-Agent Drug-Drug Interaction Prediction System")
-    st.markdown("**🚀 API-Based Version - No Local Model Loading Required**")
-    st.markdown("---")
-    
+
+    # --- Minimal CSS polish: wider content, cleaner fonts, nicer headers
+    st.markdown("""
+    <style>
+      .block-container {max-width: 1200px; padding-top: 1rem; padding-bottom: 2rem;}
+      h1, h2, h3 {letter-spacing: .2px;}
+      /* Hide Streamlit default menu/footer */
+      #MainMenu {visibility: hidden;}
+      footer {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.title("💊 Multi-Agent Drug-Drug Interaction (DDI) Analysis")
+
+    # ----- Sidebar: kept only what’s useful
     with st.sidebar:
         st.header("⚙️ Configuration")
-        
-        st.subheader("Model Information")
-        st.info("🤖 **Predictor & Validator 1**: MedLLaMA3-DDI via HF API")
-        st.info("🧠 **Risk, Validator 2 & Orchestrator**: GPT-4o")
-        
-        st.subheader("📊 API Status")
+        st.caption("Set keys via environment variables.")
+
+        # API quick checks (optional)
         if st.button("🔄 Check API Status"):
             with st.spinner("Checking APIs..."):
                 api_status = check_api_status()
                 st.text(f"OpenAI: {api_status['openai']}")
                 st.text(f"HuggingFace: {api_status['huggingface']}")
-        
-        st.subheader("💡 Benefits")
-        st.markdown("- 🚀 **Fast startup** (no model loading)")
-        st.markdown("- 💾 **Low memory usage**")
-        st.markdown("- 🔄 **Always up-to-date models**")
-        st.markdown("- ⚡ **Scalable processing**")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.header("🔬 Drug Interaction Analysis")
-        
-        with st.form("ddi_form"):
-            col_drug1, col_drug2 = st.columns(2)
-            
-            with col_drug1:
-                drug1 = st.text_input("Drug 1 Name", placeholder="e.g., Warfarin")
-                smiles1 = st.text_area("SMILES 1 (optional)", placeholder="Chemical structure", height=80)
-            
-            with col_drug2:
-                drug2 = st.text_input("Drug 2 Name", placeholder="e.g., Aspirin")
-                smiles2 = st.text_area("SMILES 2 (optional)", placeholder="Chemical structure", height=80)
-            
-            submitted = st.form_submit_button("🚀 Analyze Interaction", type="primary")
-        
-        if submitted and drug1 and drug2:
-            session_id = str(uuid.uuid4())
-            start_time = time.time()
 
-            try:
-                st.info("🚀 **API-Based Processing**: Using cloud APIs for analysis...")
-                
-                # Initialize agents (lightweight, no model loading)
-                predictor_agent = PredictorAgent()
-                validator_agent1 = ValidatorAgent1()
-                risk_agent = RiskAgent()
-                validator_agent2 = ValidatorAgent2()
-                orchestrator_agent = OrchestratorAgent()
-
-                st.success("✅ All agents initialized!")
-                
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                input_data = {
-                    'drug1': drug1,
-                    'drug2': drug2,
-                    'smiles1': smiles1,
-                    'smiles2': smiles2
-                }
-                
-                agent_responses = []
-                
-                # Predictor Agent
-                status_text.text("🔮 Running Predictor Agent (MedLLaMA3 API)...")
-                progress_bar.progress(20)
-                predictor_result = predictor_agent.process(input_data)
-                agent_responses.append(predictor_result)
-                input_data['predictor_result'] = predictor_result
-                
-                # Validator Agent 1
-                status_text.text("✅ Running Validator Agent 1 (MedLLaMA3 API)...")
-                progress_bar.progress(40)
-                validator1_result = validator_agent1.process(input_data)
-                agent_responses.append(validator1_result)
-                input_data['validator1_result'] = validator1_result
-                
-                # Risk Agent
-                status_text.text("⚠️ Running Risk Assessment Agent (GPT-4o)...")
-                progress_bar.progress(60)
-                risk_result = risk_agent.process(input_data)
-                agent_responses.append(risk_result)
-                input_data['risk_result'] = risk_result
-                
-                # Validator Agent 2
-                status_text.text("🔍 Running Validator Agent 2 (GPT-4o)...")
-                progress_bar.progress(80)
-                validator2_result = validator_agent2.process(input_data)
-                agent_responses.append(validator2_result)
-                input_data['validator2_result'] = validator2_result
-                
-                # Orchestrator Agent
-                status_text.text("🎯 Running Orchestrator Agent (GPT-4o)...")
-                progress_bar.progress(90)
-                input_data['all_results'] = agent_responses
-                final_result = orchestrator_agent.process(input_data)
-                agent_responses.append(final_result)
-                
-                progress_bar.progress(100)
-                status_text.text("✅ Analysis Complete!")
-                
-                total_time = time.time() - start_time
-                
-                st.markdown("---")
-                st.header("📊 Analysis Results")
-                
-                decision_color = "🔴" if final_result.response == "interaction" else "🟢"
-                st.markdown(f"""
-                    <div style="
-                        padding: 20px;
-                        border-radius: 10px;
-                        background-color: {'#ffebee' if final_result.response == 'interaction' else '#e8f5e8'};
-                        border-left: 5px solid {'#f44336' if final_result.response == 'interaction' else '#4caf50'};
-                        color: black;">
-                        <h2>{decision_color} Final Decision: {final_result.response.upper()}</h2>
-                        <p><strong>Confidence:</strong> {final_result.confidence:.2f}</p>
-                        <p><strong>Processing Time:</strong> {total_time:.2f} seconds</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                
-                st.subheader("🤖 Agent Analysis Details")
-                for idx, response in enumerate(agent_responses):
-                    display_agent_response(response, idx)
-
-                
-                conversation_log = ConversationLog(
-                    session_id=session_id,
-                    timestamp=datetime.now().isoformat(),
-                    user_input=f"DDI Query: {drug1} + {drug2}",
-                    drug1=drug1,
-                    drug2=drug2,
-                    smiles1=smiles1,
-                    smiles2=smiles2,
-                    agent_responses=agent_responses,
-                    final_answer=final_result.response,
-                    total_processing_time=total_time,
-                    user_settings={
-                        'predictor_agent': {'type': 'huggingface_api', 'model': 'Pharmamapllm/MedLLaMA3-DDI-QLoRA-V1'},
-                        'validator1_agent': {'type': 'huggingface_api', 'model': 'Pharmamapllm/MedLLaMA3-DDI-QLoRA-V1'},
-                        'risk_agent': {'type': 'openai', 'model': 'gpt-4o'},
-                        'validator2_agent': {'type': 'openai', 'model': 'gpt-4o'},
-                        'orchestrator_agent': {'type': 'openai', 'model': 'gpt-4o'}
-                    }
-                )
-                
-                log_file = save_conversation_log(conversation_log)
-                st.success(f"💾 Analysis saved to: {log_file}")
-                
-            except Exception as e:
-                st.error(f"❌ Error during analysis: {e}")
-                st.error("Please check your API keys and internet connection.")
-    
-    with col2:
-        st.header("📈 System Status")
-        
-        st.metric("Memory Usage", "Low ✅")
-        st.metric("Model Loading", "None Required ✅")
-        
-        st.subheader("🔑 API Keys Status")
+        st.divider()
+        st.subheader("🔑 API Keys")
         openai_key = "✅" if os.getenv('OPENAI_API_KEY') else "❌"
-        hf_key = "✅" if os.getenv('HUGGINGFACE_API_KEY') else "❌"
-        
+        hf_key     = "✅" if os.getenv('HUGGINGFACE_API_KEY') else "❌"
         st.text(f"OpenAI: {openai_key}")
         st.text(f"Hugging Face: {hf_key}")
 
+        st.divider()
         st.subheader("📋 Recent Analyses")
         log_dir = Path("logs")
         if log_dir.exists():
             log_files = list(log_dir.glob("*.json"))
             log_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
-
-            for log_file in log_files[:5]: 
+            for log_file in log_files[:5]:
                 try:
                     with open(log_file) as f:
                         content = f.read().strip()
                         if not content:
-                            continue  
+                            continue
                         log_data = json.loads(content)
+                    st.markdown(
+                        f"- **{log_data['drug1']} + {log_data['drug2']}** — "
+                        f"{log_data['final_answer']} · {log_data['total_processing_time']:.2f}s"
+                    )
+                except Exception:
+                    pass
 
-                    with st.expander(f"{log_data['drug1']} + {log_data['drug2']}", expanded=False):
-                        st.text(f"Result: {log_data['final_answer']}")
-                        st.text(f"Time: {log_data['total_processing_time']:.2f}s")
-                        st.text(f"Session: {log_data['session_id'][:8]}")
+    # ----- Main area
+    col1, col2 = st.columns([2, 1], vertical_alignment="top")
 
-                except Exception as e:
-                    st.warning(f"⚠️ Skipping log file {log_file.name}: {e}")
+    with col1:
+        st.subheader("🔬 New Analysis")
+        with st.form("ddi_form", clear_on_submit=False):
+            c1, c2 = st.columns(2)
+            with c1:
+                drug1 = st.text_input("Drug 1", placeholder="e.g., Warfarin")
+                smiles1 = st.text_area("SMILES 1 (optional)", height=80)
+            with c2:
+                drug2 = st.text_input("Drug 2", placeholder="e.g., Aspirin")
+                smiles2 = st.text_area("SMILES 2 (optional)", height=80)
 
-        st.subheader("ℹ️ About This Version")
-        st.info("""
-        This version uses **HuggingFace Inference API** instead of loading models locally:
-        
-        ✅ **No model downloads**  
-        ✅ **Minimal memory usage**  
-        ✅ **Fast startup**  
-        ✅ **Always latest models**  
-        
-        Perfect for laptops and development!
-        """)
+            submitted = st.form_submit_button("🚀 Analyze", type="primary", use_container_width=True)
+
+        if submitted and drug1 and drug2:
+            session_id = str(uuid.uuid4())
+            start_time = time.time()
+
+            try:
+                # Initialize lightweight agents (API-based)
+                predictor_agent   = PredictorAgent()
+                validator_agent1  = ValidatorAgent1()
+                risk_agent        = RiskAgent()
+                validator_agent2  = ValidatorAgent2()
+                orchestrator_agent= OrchestratorAgent()
+
+                progress = st.progress(0)
+                status   = st.empty()
+
+                input_data = {
+                    'drug1': drug1, 'drug2': drug2,
+                    'smiles1': smiles1, 'smiles2': smiles2
+                }
+                agent_responses = []
+
+                status.text("🔮 Predictor Agent…")
+                progress.progress(20)
+                predictor_result = predictor_agent.process(input_data)
+                agent_responses.append(predictor_result)
+                input_data['predictor_result'] = predictor_result
+
+                status.text("✅ Validator Agent 1…")
+                progress.progress(40)
+                validator1_result = validator_agent1.process(input_data)
+                agent_responses.append(validator1_result)
+                input_data['validator1_result'] = validator1_result
+
+                status.text("⚠️ Risk Assessment…")
+                progress.progress(60)
+                risk_result = risk_agent.process(input_data)
+                agent_responses.append(risk_result)
+                input_data['risk_result'] = risk_result
+
+                status.text("🔍 Validator Agent 2…")
+                progress.progress(80)
+                validator2_result = validator_agent2.process(input_data)
+                agent_responses.append(validator2_result)
+                input_data['validator2_result'] = validator2_result
+
+                status.text("🎯 Orchestrator…")
+                progress.progress(95)
+                input_data['all_results'] = agent_responses
+                final_result = orchestrator_agent.process(input_data)
+                agent_responses.append(final_result)
+
+                total_time = time.time() - start_time
+                progress.progress(100)
+                status.text("✅ Complete")
+
+                # Final decision card
+                st.markdown("---")
+                decision_color = "🔴" if final_result.response == "interaction" else "🟢"
+                st.markdown(
+                    f"""
+                    <div style="
+                        padding: 18px; border-radius: 12px;
+                        background: {'#ffefef' if final_result.response == 'interaction' else '#eef8ef'};
+                        border: 1px solid {'#ffd3d3' if final_result.response == 'interaction' else '#cfe9cf'};
+                    ">
+                      <div style="font-size:1.15rem; font-weight:700; margin-bottom:6px;">
+                        {decision_color} Final Decision: {final_result.response.upper()}
+                      </div>
+                      <div>Confidence: <b>{final_result.confidence:.2f}</b></div>
+                      <div>Total time: <b>{total_time:.2f}s</b></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                # Agent tabs
+                st.subheader("🤖 Agent Analyses")
+                tabs = st.tabs([r.agent_name for r in agent_responses])
+                for tab, resp in zip(tabs, agent_responses):
+                    with tab:
+                        display_agent_response(resp, idx=hash(resp.agent_name) % 10_000)
+
+                # Save log
+                conversation_log = ConversationLog(
+                    session_id=session_id,
+                    timestamp=datetime.now().isoformat(),
+                    user_input=f"DDI Query: {drug1} + {drug2}",
+                    drug1=drug1, drug2=drug2,
+                    smiles1=smiles1, smiles2=smiles2,
+                    agent_responses=agent_responses,
+                    final_answer=final_result.response,
+                    total_processing_time=total_time,
+                    user_settings={
+                        'predictor_agent':  {'type': 'huggingface_api', 'model': 'Pharmamapllm/MedLLaMA3-DDI-QLoRA-V1'},
+                        'validator1_agent': {'type': 'huggingface_api', 'model': 'Pharmamapllm/MedLLaMA3-DDI-QLoRA-V1'},
+                        'risk_agent':       {'type': 'openai', 'model': 'gpt-4o'},
+                        'validator2_agent': {'type': 'openai', 'model': 'gpt-4o'},
+                        'orchestrator_agent': {'type': 'openai', 'model': 'gpt-4o'}
+                    }
+                )
+                log_file = save_conversation_log(conversation_log)
+                with open(log_file, "rb") as f:
+                    st.download_button(
+                        "💾 Download session log",
+                        f,
+                        file_name=os.path.basename(log_file),
+                        mime="application/json",
+                        use_container_width=True
+                    )
+
+            except Exception as e:
+                st.error(f"❌ Error during analysis: {e}")
+                st.error("Please check your API keys and Internet connection.")
+
+    with col2:
+        st.subheader("📈 System Status")
+        st.metric("Model Loading", "Not required")
+        st.metric("Mode", "API-only")
+
+        st.caption("Tip: Keep logs for auditability and reproducibility.")
+
 
 if __name__ == "__main__":
     main()
-
